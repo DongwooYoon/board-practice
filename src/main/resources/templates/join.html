@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>등록폼</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+    	.inputBase {
+		  display: block;
+		  padding: 10px;
+		  border: 1px solid gray;
+		}
+		
+		.inputError {
+		  display: block;
+		  padding: 10px;
+		  border: 1px solid red;
+		}
+		.errorMessage{
+		  font-size: 8pt;
+		  color: red;
+		}
+    </style>
+    
+</head>
+<body>
+<h1>회원가입</h1>
+<div>
+    <form role="form" action="/join" th:object="${joinForm}" method="post">
+        <div>
+            <label th:for="nickname">닉네임:</label>
+            <input type="text" th:field="*{nickname}" placeholder="닉네임을 입력하세요"
+                   th:class="${#fields.hasErrors('nickname')}? 'inputError' : 'inputBase'">
+            <p th:if="${#fields.hasErrors('nickname')}" th:errors="*{nickname}" class='errorMessage'>Incorrect date</p>
+        </div>
+        <div>
+            <label th:for="password">비밀번호:</label>
+            <input type="text" th:field="*{password}" placeholder="비밀번호를 입력하세요"
+                   th:class="${#fields.hasErrors('password')}? 'inputError' : 'inputBase'">
+            <p th:if="${#fields.hasErrors('password')}" th:errors="*{password}" class='errorMessage'>Incorrect date</p>
+        </div>
+        <button type="submit">가입</button>
+    </form>
+    <br/>
+</div>
+
+</body>
+</html>

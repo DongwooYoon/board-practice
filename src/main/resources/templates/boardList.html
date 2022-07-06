@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+
+<head>
+	<meta charset="UTF-8">
+	<title>게시판</title>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body>
+
+	<div th:if="${session.nickname != null}">
+		<span th:text="${session.nickname}"></span>님 환영합니다.
+	</div>
+	<div>
+		<a th:if="${session.nickname == null}" href="/login">로그인</a>
+		<a th:if="${session.nickname != null}" href="/logout">로그아웃</a>
+	</div>
+	<hr>
+
+	<div>
+		<a href="/board/lists/leagueoflegends">롤 게시판</a>
+		<a href="/board/lists/fifaonline4">피파 게시판</a>
+		<a href="/board/lists/suddenattack">서든 게시판</a>
+		<a href="/board/lists/battlegrounds">배그 게시판</a>
+	</div>
+	<hr>
+
+	<input type="hidden" id="sessionNickname" th:value="${session.nickname}" />
+	<input type="hidden" id="categoryEnName" th:value="${category.enName}" />
+
+	<h1>[<span th:text="${category.koName}"></span> 게시판]</h1>
+	<div th:if="${session.nickname != null}">
+		<span>[등록하기]</span>
+		<form id="insertForm" method="post">
+			<table border="1" cellpadding="0" cellspacing="0" width="700">
+				<tr>
+					<th>제목</th>
+					<th style="display: none;">게시글 작성자</th>
+					<th>내용</th>
+					<th></th>
+				</tr>
+				<tr>
+					<td align="center"><input type="text" id="title" name="title" /></td>
+					<td style="display: none;"><input type="number" id="member_id" name="member_id"
+							th:value="${session.member_id}" /></td>
+					<td align="center"><input type="text" id="content" name="content" /></td>
+					<td align="center"><input type="button" value="등록" onclick="insertBoard()" /></td>
+				</tr>
+			</table>
+		</form>
+	</div>
+
+	<br>
+
+	<div id="boardList">
+		<span>[글 목록]</span>
+		<table border="1" cellpadding="0" cellspacing="0" width="700">
+			<thead>
+				<tr>
+					<th style="display:none;">아이디</th>
+					<th>번호</th>
+					<th>제목</th>
+					<th>작성자</th>
+					<th>비고</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
+	</div>
+	
+	<div id="boardPage">
+	</div>
+
+
+
+	<script>
+
+		$(document).ready(function () {
+			getBoardList();
+		})
+
+		function getBoardList(pageClick) {
+			var categoryEnName = $('#categoryEnName').val();
+			$.ajax({
+				type: 'GET',
+				url: '/api/Board/' + categoryEnName + '?page=' + pageClick,
+				success: function (response) {
+					const arrTrs = response.boardList.map(item => ('<tr><td style="display:none;">' + item.id + '</td><td>' + item.id.slice(-5) + 
+						'</td><td>' + item.title + '</td><td>' + item.member.nickname +
+						'</td><td align="center">' +
+						'<button><a href="/board/lists/' + item.category.enName + '/detail/' + item.id + '">상세</a></button>' +
+						'<button><a href="/board/lists/' + item.category.enName + '/edit/' + item.id + '">수정</a></button>' +
+						'<button onclick="deleteBoard()">삭제</button></td></tr>'));
+
+					const htmlForTbody = arrTrs.join('');
+					//console.log("htmlForTbody: ", htmlForTbody);
+					//debugger;
+					
+					document.querySelector("#boardList table tbody").innerHTML = htmlForTbody;
+					
+					
+/*					
+					console.log(response.totalPage);
+	
+					let arrPage = [];
+					for (var i = 0; i < response.totalPage; i++){
+						arrPage.push(i);
+					}
+					let arrPageBtns = arrPage.map(page => '<button type="button" onclick="getBoardList(' + page + ')">' + (page + 1) + '</button>');
+					
+					let htmlForBoardPage = arrPageBtns.join('');
+					//console.log(htmlForBoardPage);
+					
+					document.querySelector("#boardPage").innerHTML = htmlForBoardPage;
+*/
+					let htmlForBoardPage='';
+					
+					if(response.startPage > response.pageSize){
+						htmlForBoardPage += '<button type="button" onclick="getBoardList(' + (response.startPage - response.pageSize - 1) + ')">&lt;</button>';
+					}
+/*					
+					let arrPages = [];
+					for (var i = response.startPage; i < (response.endPage + 1); i++){
+						arrPages.push(i)
+					}
+					let arrPageBtns = arrPages.map(page => '<button type="button" onclick="getBoardList(' + (page -1) + ')">' + page + '</button>');
+					htmlForBoardPage += arrPageBtns.join('');
+*/					
+					let arrPageBtns = [];
+					for (var i = response.startPage; i < (response.endPage + 1); i++){
+						if(i == response.currentPage){
+							arrPageBtns.push('<button style="background-color: red;"type="button" onclick="getBoardList(' + (i -1) + ')">' + i + '</button>')
+						}else{
+							arrPageBtns.push('<button type="button" onclick="getBoardList(' + (i -1) + ')">' + i + '</button>')
+						}
+					}
+					htmlForBoardPage += arrPageBtns.join('');
+					
+					if(response.endPage < response.totalPage){
+						htmlForBoardPage += '<button type="button" onclick="getBoardList(' + (response.startPage + response.pageSize - 1) + ')">&gt;</button>';
+					}
+					
+					document.querySelector("#boardPage").innerHTML = htmlForBoardPage;
+
+				
+					
+					
+					
+				},
+				error: function (a, b, c) {
+					console.log(a, b, c);
+				}
+			});
+		}
+
+		function insertBoard() {
+			var categoryEnName = $('#categoryEnName').val();
+
+			var insertOK = true
+			if ($('#title').val().length === 0) {alert('제목을 입력하세요.'); $("#title").focus(); insertOK = false; return false;}
+			if ($('#content').val().length === 0) {alert('내용를 입력하세요.'); $("#content").focus(); insertOK = false; return false;}
+			if ($('#title').val().length !== 0 && $('#content').val().length != 0) {insertOK = true;}
+
+			if (insertOK) {
+				var formData = $('#insertForm').serialize();
+
+				$.ajax({
+					type: 'POST',
+					url: '/api/Board/' + categoryEnName,
+					dataType: 'json',
+					data: formData,
+					success: function (item) {
+						alert('등록되었습니다.');
+						getBoardList();
+					},
+					error: function (a, b, c) {
+						console.log(a, b, c);
+					}
+				});
+
+				$('#title').val('');
+				$('#content').val('');
+			}
+		}
+
+		function deleteBoard() {
+			var sessionNickname = $('#sessionNickname').val();
+			var eventBtn = event.srcElement;
+			var boardNickname = $(eventBtn).parent().parent().children().eq(3).text();		// eq(3) : 4번째 컬럼인 작성자 컬럼
+
+			if (sessionNickname == boardNickname) {
+
+				var deleteOK = confirm('정말로 삭제하시겠습니까?');
+
+				if (deleteOK) {
+					let btn = event.srcElement;
+					let id = $(btn).parent().parent().children().eq(0).text();
+
+					$.ajax({
+						type: 'DELETE',
+						url: '/api/Board/' + id,
+						success: function () {
+							//$(btn).parent().parent().remove();
+							alert('삭제되었습니다.');
+							getBoardList();
+						},
+						error: function (a, b, c) {
+							console.log(a, b, c);
+						}
+					});
+				}
+			} else {
+				alert('다른 회원의 게시물은 삭제할 수 없습니다.');
+			}
+		}
+
+	</script>
+</body>
+
+</html>

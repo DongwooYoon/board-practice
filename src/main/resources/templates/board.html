@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<head>
+<meta charset="UTF-8">
+<title>게시물</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+
+<div th:if="${session.nickname != null}">
+<span th:text="${session.nickname}"></span>님 환영합니다.
+</div>
+<div>
+<a th:if="${session.nickname == null}" href="/login">로그인</a>
+<a th:if="${session.nickname != null}" href="/logout">로그아웃</a>
+</div>
+<hr>
+
+<input id="sessionNickname" type="hidden" th:value="${session.nickname}"/>
+<input id="enName" type="hidden" th:value="${board.category.enName}"/>
+<input id="boardId" type="hidden" th:value="${board.id}"/>
+<h3>[<span th:text="${board.category.koName}"></span>-<span th:text="${board.id}"></span>번 게시물]</h3>
+
+<div>
+<span>[글 상세]</span>
+<table border="1" cellpadding="0" cellspacing="0" width="700">
+	<thead>
+		<tr>
+			<th>번호</th>
+			<th>제목</th>
+			<th>작성자</th>
+			<th>내용</th>
+			<th>작성일</th>
+			<th th:if="${session.nickname == board.member.nickname}"></th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td th:text="${#strings.length(board.id)}"/></td>
+			<td th:text="${board.title}"/></td>
+			<td th:text="${board.member.nickname}"/></td>
+			<td th:text="${board.content}"/></td>
+			<td th:text="${board.regdate}"/></td>
+			<td th:if="${session.nickname == board.member.nickname}" align="center">
+				<button><a th:href="@{../edit/{id}(id = ${board.id})}">수정</a></button>
+				<button><a th:href="@{../delete/{id}(id = ${board.id})}" 
+								onclick='return confirm("정말로 삭제하시겠습니까?");'>삭제</a></button>
+			
+			</td>
+		</tr>
+	</tbody>
+</table>
+<a th:href="@{/board/lists/{enName}(enName = ${board.category.enName})}">목록보기</a>
+</div>
+<hr>
+
+<br><br><br>
+
+
+<div>
+	<input id="commentBtn" style="display:block" type="button" value="댓글" onclick="getCommentList()" />
+	
+	<div id="commentForm" style="display:none">
+		<div th:if="${session.nickname != null}">
+		<span>[댓글등록]</span>
+		<form id="commentInsertForm" method="post">
+			<table border="1" cellpadding="0" cellspacing="0" width="200">
+				<tr>
+					<th style="display: none;">댓글 작성자</th>
+					<th style="display: none;">게시글 작성자</th>
+					<th>내용</th>
+					<th></th>
+				</tr>
+				<tr>
+					<td style="display: none;"><input type="number" id="member_id" name="member_id" th:value="${session.member_id}"/></td>
+					<td style="display: none;"><input type="text" id="board_id" name="board_id" th:value="${board.id}"/></td>
+					<td align="center"><input type="text" id="content" name="content" /></td>
+					<td align="center"><input type="button" value="등록" onclick="insertComment()" /></td>
+				</tr>
+			</table>
+		</form>
+		</div>
+		
+		<br><br>
+		
+		<div id="commentList">
+		<span>[댓글목록]</span>		
+		<table border="1" cellpadding="0" cellspacing="0" width="500">
+			<thead>
+				<tr>
+					<th style="display:none">번호</th>
+					<th>작성자</th>
+					<th>내용</th>
+					<th>작성일</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+			
+			</tbody>
+		</table>  
+		</div>
+	</div>
+<div>
+<script>
+
+function getCommentList(){
+	$('#commentBtn').css("display", "none");
+	$('#commentForm').css("display", "block");
+	
+	var id = $('#boardId').val();
+	$.ajax({
+		type: 'GET',
+		url: '/api/Comment/' + id,
+		dataType: 'json',
+	    success: function(list) {
+	        $(list).each(function(index, item) {
+	            $('#commentList tbody').append('<tr><td style="display:none">' + item.id + '</td><td>' + item.member.nickname +
+	            							 	'</td><td>' + item.content + '</td><td>' + item.regdate + 
+	            								'</td><td align="center">' + 
+	            								'<button onclick="deleteComment()">삭제</button></td></tr>');           							
+	        });   				
+	    },
+	    error: function(a, b, c) {
+	        console.log(a, b, c);   				
+	    }
+	});
+}
+
+function insertComment(){
+	var insertOK = true
+	if($('#content').val().length==0){alert('내용를 입력하세요.'); $("#content").focus(); insertOK=false; return false;}
+	
+	if(insertOK){
+		var formData = $('#commentInsertForm').serialize();
+	 			
+		$.ajax({
+			type: 'POST',
+			url: '/api/Comment',
+			dataType: 'json',
+			data: formData,
+			success: function(item) {
+				$('#commentList tbody').append('<tr><td style="display:none">' + item.id + '</td><td>' + item.member.nickname +
+	            							 	'</td><td>' + item.content + '</td><td>' + item.regdate + 
+	            								'</td><td align="center">' + 
+	            								'<button onclick="deleteComment()">삭제</button></td></tr>'); 
+				alert('등록되었습니다.');
+			},
+			error: function(a, b, c) {
+				console.log(a, b, c);   				
+			}
+		});
+		
+		$('#content').val('');
+	}
+}
+
+
+function deleteComment() {
+	var sessionNickname = $('#sessionNickname').val();
+	var eventBtn = event.srcElement;
+	var commentNickname = $(eventBtn).parent().parent().children().eq(1).text();		// eq(1) : 2번째 컬럼인 작성자 컬럼
+	
+	if(sessionNickname == commentNickname){
+		var deleteOK = confirm('정말로 삭제하시겠습니까?');
+		
+		if(deleteOK){
+			let btn = event.srcElement;
+			let id = $(btn).parent().parent().children().eq(0).text();
+			
+			$.ajax({
+				type: 'DELETE',
+				url: '/api/Comment/' + id,
+				success: function() {
+					$(btn).parent().parent().remove();
+					alert('삭제되었습니다.');
+				},
+				error: function(a, b, c) {
+					console.log(a, b, c);   				
+				}
+			});
+			
+			
+		}
+	} else {
+		alert('다른 회원의 댓글은 삭제할 수 없습니다.');
+	}	
+}
+
+</script>
+
+</body>
+</html>
